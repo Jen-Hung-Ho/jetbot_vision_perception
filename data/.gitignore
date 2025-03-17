@@ -1,0 +1,4 @@
+# Ignore YOLO files with specific extensions in /data folder
+*.engine
+*.onnx
+*.pt
