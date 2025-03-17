@@ -10,6 +10,9 @@ ENV DISPLAY=:0
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ROS_DISTRO=humble
 
+# Define the ROS2 setup script path
+ARG ROS2_SETUP=/opt/ros/$ROS_DISTRO/setup.bash
+
 # Uninstall any existing NumPy versions
 # RUN pip uninstall -y numpy
 
@@ -30,6 +33,7 @@ RUN apt-get update && apt-get install -y \
 
 # Update the package list and install vi
 # RUN apt-get update && apt-get install -y vim
+
 # Add ROS2 repository and install ROS2 Humble
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
     sh -c 'echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list' && \
@@ -43,6 +47,19 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | a
 
 # Source ROS2 setup script
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc
+
+# Install compatible setuptools version
+RUN pip install setuptools==59.6.0
+
+# Create ROS2 workspace
+RUN mkdir -p /ros2_ws/src
+
+# Copy the ROS2 package folder from the host machine to the container
+COPY ./jetbot_vision_perception /ros2_ws/src/jetbot_vision_perception
+
+# Build the ROS2 package
+WORKDIR /ros2_ws
+RUN /bin/bash -c "source ${ROS2_SETUP} && colcon build"
 
 
 # Set the working directory

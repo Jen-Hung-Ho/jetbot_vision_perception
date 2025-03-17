@@ -14,6 +14,7 @@ DOCKER_VOLUMES="
 --volume=$ROOT/app:/app \
 --volume=$ROOT/data:/data \
 --volume=$ROOT/out:/out \
+--volume=$ROOT/jetbot_vision_perception:/jetbot_code \
 "
 
 DOCKER_ENV_VARS="
