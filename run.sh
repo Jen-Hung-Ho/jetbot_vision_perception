@@ -68,5 +68,3 @@ docker run -it --rm --net host --ipc=host --runtime=nvidia --privileged\
     --workdir /app \
     $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && /bin/bash"
     # $DOCKER_IMAGE
-
-

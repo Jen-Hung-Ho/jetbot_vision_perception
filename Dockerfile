@@ -45,8 +45,9 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | a
     rosdep update && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Source ROS2 setup script
+# Source both ROS2 Humble and colcon build setup scripts
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc
+RUN echo "source /ros2_ws/install/setup.bash" >> /root/.bashrc
 
 # Install compatible setuptools version
 RUN pip install setuptools==59.6.0
