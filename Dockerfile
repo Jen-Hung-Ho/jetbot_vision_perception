@@ -1,5 +1,3 @@
-# Use the base image
-# FROM ultralytics/ultralytics:latest-jetson-jetpack6
 # Use an argument for the base image
 ARG BASE_IMAGE=ultralytics/ultralytics:latest-jetson-jetpack6
 FROM ${BASE_IMAGE}
