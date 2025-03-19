@@ -1,4 +1,14 @@
 #!/bin/bash
+# xhost +
+
+# usage:
+# run.sh admin
+# run.sh user
+
+# Get the user id and group id
+ROOT="$(dirname "$(readlink -f "$0")")"
+USER_ID=$(id -u)
+GROUP_ID=$(id -g)
 
 # Set the environment variables
 DISPLAY_VAR=$DISPLAY
@@ -52,8 +62,6 @@ DOCKER_DEVICES="
 "
 DOCKER_ARGS="${DOCKER_VOLUMES} ${DOCKER_ENV_VARS} ${V4L2_DEVICES} ${I2C_DEVICES} ${DOCKER_DEVICES}"
 
-# --volume=$ROOT/app:/ultralytics \
-
 # Set the docker image
 # DOCKER_IMAGE=${DOCKER_IMAGE:-ultralytics/ultralytics:latest-jetson-jetpack6}
 DOCKER_IMAGE=${DOCKER_IMAGE:-jetbot_vision_perception:latest}
@@ -62,9 +70,18 @@ DOCKER_IMAGE=${DOCKER_IMAGE:-jetbot_vision_perception:latest}
 NUMPY_VERSION=${NUMPY_VERSION:-1.23.5}
 
 # Run the docker command
-# docker run -it --rm --net host --ipc=host --runtime=nvidia \
-docker run -it --rm --net host --ipc=host --runtime=nvidia --privileged\
-    ${DOCKER_ARGS} \
-    --workdir /app \
-    $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && /bin/bash"
-    # $DOCKER_IMAGE
+# Check if the first input parameter is 'admin'
+if [ "$1" == "user" ]; then
+    echo "Running as USER with id $USER_ID:$GROUP_ID"
+
+    sudo docker run --runtime=nvidia -it --user $USER_ID:$GROUP_ID --rm --net host --ipc=host --privileged\
+        ${DOCKER_ARGS} \
+        --workdir /app \
+        $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && /bin/bash"
+else
+    echo "Running as ROOT user"
+    docker run -it --rm --net host --ipc=host --runtime=nvidia --privileged\
+        ${DOCKER_ARGS} \
+        --workdir /app \
+        $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && /bin/bash"
+fi

@@ -25,7 +25,7 @@ import rclpy
 from rclpy.node import Node
 from rcl_interfaces.msg import ParameterType, SetParametersResult, Parameter
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
+from cv_bridge import CvBridge, CvBridgeError # Package to convert between ROS and OpenCV Images
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -44,14 +44,17 @@ class YOLODetectionNode(Node):
         super().__init__('yolo_detection_node')
         
         self.start = self.declare_parameter('start', True).get_parameter_value().bool_value
+        self.debug = self.declare_parameter('debug', False).get_parameter_value().bool_value
         self.model_path = self.declare_parameter('model_path', '/data/yolov8n.engine').get_parameter_value().string_value
         self.camera_color_topic = self.declare_parameter('camera_color_topic', '/camera/color/image_raw').get_parameter_value().string_value
         self.camera_depth_topic = self.declare_parameter('camera_depth_topic', '/camera/depth/image_raw').get_parameter_value().string_value
+        self.img_pub_topic = self.declare_parameter('image_depth_topic', 'depth_image_raw').get_parameter_value().string_value
         
         self.get_logger().info('start              : {}'.format(self.start))
         self.get_logger().info('model_path         : {}'.format(self.model_path))
         self.get_logger().info('camera_color_topic : {}'.format(self.camera_color_topic))
         self.get_logger().info('camera_depth_topic : {}'.format(self.camera_depth_topic))
+        self.get_logger().info('pub_img_depth_topic: {}'.format(self.img_pub_topic))
 
         # Add parameters callback 
         self.add_on_set_parameters_callback(self.parameter_callback)
@@ -68,6 +71,10 @@ class YOLODetectionNode(Node):
         self.create_subscription(Image, self.camera_color_topic, self.color_image_callback, 10)
         # self.create_subscription(Image, '/camera/depth/image_raw', self.depth_image_callback, 10)
         self.create_subscription(Image, self.camera_depth_topic, self.depth_image_callback, 10)
+
+        # Create the publisher, This publish wil will publish an Image
+        # to the image_row topic, The queue size is 10 messages
+        self.image_pub = self.create_publisher(Image, self.img_pub_topic, 10)
 
         # Initialize depth frame
         self.depth_frame = None  # Store depth frame
@@ -118,9 +125,16 @@ class YOLODetectionNode(Node):
                 cv2.putText(color_frame, label, (x1, y1 - 5),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-        # Display the frame
-        cv2.imshow("YOLO Detection", color_frame)
-        cv2.waitKey(1)
+
+        if self.debug:
+            # Display the frame
+            cv2.imshow("YOLO Detection", color_frame)
+            cv2.waitKey(1)
+
+        try:
+            self.image_pub.publish(self.bridge.cv2_to_imgmsg(color_frame, "bgr8"))
+        except CvBridgeError as e:
+            self.get_logger().error(e)
 
 def main(args=None):
     rclpy.init(args=args)
