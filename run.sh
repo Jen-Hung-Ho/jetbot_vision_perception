@@ -74,7 +74,7 @@ NUMPY_VERSION=${NUMPY_VERSION:-1.23.5}
 if [ "$1" == "user" ]; then
     echo "Running as USER with id $USER_ID:$GROUP_ID"
 
-    sudo docker run --runtime=nvidia -it --user $USER_ID:$GROUP_ID --rm --net host --ipc=host --privileged\
+    sudo docker run --runtime=nvidia -it --user $USER_ID:$GROUP_ID --group-add video --rm --net host --ipc=host --privileged\
         ${DOCKER_ARGS} \
         --workdir /app \
         $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && /bin/bash"
