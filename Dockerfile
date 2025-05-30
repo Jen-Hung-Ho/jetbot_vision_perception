@@ -82,9 +82,18 @@ RUN mkdir -p /ros2_ws/src
 # Copy the ROS2 package folder from the host machine to the container
 COPY ./jetbot_vision_perception /ros2_ws/src/jetbot_vision_perception
 
+# *** FIX: Change ownership before switching user ***
+RUN chown -R ${USERNAME}:${USERNAME} /ros2_ws
+
+# Switch to jetbot user before building
+USER jetbot
+
 # Build the ROS2 package
 WORKDIR /ros2_ws
 RUN /bin/bash -c "source ${ROS2_SETUP} && colcon build"
+
+# Switch back to root if needed for later steps
+USER root
 
 
 # Set the working directory
