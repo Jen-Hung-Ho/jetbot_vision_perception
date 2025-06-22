@@ -25,6 +25,8 @@ DOCKER_VOLUMES="
 --volume=$ROOT/data:/data \
 --volume=$ROOT/out:/out \
 --volume=$ROOT/jetbot_vision_perception:/jetbot_code \
+--volume=/etc/passwd:/etc/passwd:ro \
+--volume=/etc/group:/etc/group:ro \
 "
 
 DOCKER_ENV_VARS="
@@ -33,6 +35,7 @@ DOCKER_ENV_VARS="
 --env QT_QPA_PLATFORM=xcb \
 --env QT_PLUGIN_PATH=/usr/local/lib/python3.10/dist-packages/cv2/qt/plugins \
 --env ROS_DOMAIN_ID=$ROS_DOMAIN_ID \
+--env HOME=/tmp \
 "
 
 # check for V4L2 devices
@@ -77,11 +80,11 @@ if [ "$1" == "user" ]; then
     sudo docker run --runtime=nvidia -it --user $USER_ID:$GROUP_ID --group-add video --rm --net host --ipc=host --privileged\
         ${DOCKER_ARGS} \
         --workdir /app \
-        $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && /bin/bash"
+        $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && source /ros2_ws/install/setup.bash && /bin/bash"
 else
     echo "Running as ROOT user"
     docker run -it --rm --net host --ipc=host --runtime=nvidia --privileged\
         ${DOCKER_ARGS} \
         --workdir /app \
-        $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && /bin/bash"
+        $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && source /ros2_ws/install/setup.bash && /bin/bash"
 fi
