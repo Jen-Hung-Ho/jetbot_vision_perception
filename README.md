@@ -21,25 +21,44 @@ docker build --network host -t jetbot_vision_perception
     ```
 
 - **YOLO_export_Models.py**
-  - The YOLO_export_Models.py script is designed to export a pre-trained YOLOv8 model (specifically, the lightweight "yolov8n.pt" version) into a different format for deployment. You can run the script from the command line and specify the export format as either `onnx` or `engine` (TensorRT). If no format is specified, it defaults to TensorRT (`engine`).
-  - An exported model file (`yolov8n.onnx` or `yolov8n.engine`) in the `../data` directory, ready for deployment or inference using ONNX or TensorRT runtimes.
+  - The YOLO_export_Models.py script is designed to export a pre-trained YOLO model (specifically, the lightweight "yolov8n.pt" or "yolov11n.pt" versions) into a different format for deployment. You can run the script from the command line and specify:
+    - the export format: onnx or engine (TensorRT)
+    - the YOLO version: 8 or 11
+  - If no format is specified, it defaults to TensorRT (`engine`).
+  - It will generate an exported model file (`yolov8n.onnx`, `yolov8n.engine` or `yolov11n.onnx`, `yolov11n.engine`) in the `../data` directory, ready for deployment or inference using ONNX or TensorRT runtimes.
   ```bash
-  python3 YOLO_export_Models.py onnx
+  Usage:   python3 YOLO_export_Models.py [engine|onnx] [8|11]
+  Example: python3 YOLO_export_Models.py engine 11
   ```
+  > **Note (for YOLOv11 users)**:
+  > The yolov11n.pt weights must be downloaded manually from the following link and placed in the data/ folder:
+  > [Download yolov11n.pt](https://huggingface.co/Ultralytics/YOLO11/blob/365ed86341e7a7456dbc4cafc09f138814ce9ff1/yolo11n.pt)
+  > Be sure to rename the file to yolov11n.pt after downloading.
 # Jetbot ROS2 yolo_detection
+> **Note:**  
+> The provided Docker image includes only the ROS2 source code—it does **not** come with ROS2 pre-installed or built.  
+> On first-time launch inside the container, you **must manually build the workspace** with:  
+> 
+> ```bash
+> cd /ros2_ws && colcon build
+> ```
+> 
+> You'll also see this reminder printed by `run.sh` if the `/ros2_ws/install/setup.bash` file is missing.
+
 - Usage:
   ```bash
   # Navigate to the source directory
-  cd ../ros2_ws/src
+  cd ../ros2_ws
   # Build the package (requires root privileges)
   colcon build
   # Source the setup file
-  . install/local_setup.bash
+  . install/setup.bash
   # Launch YOLO detection node
   ros2 run jetbot_vision_perception yolo_detection
+  ros2 run jetbot_vision_perception yolo_detection --ros-args -p model_path:=/data/yolov11n.engine
   ```
 
 
-python3 YOLO_export_Models.py onnx
-python3 webcam_test.py
-python3 YOLO_detection_webcam.py
+- python3 YOLO_export_Models.py engine 11
+- python3 webcam_test.py
+- python3 YOLO_detection_webcam.py
