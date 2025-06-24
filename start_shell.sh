@@ -6,5 +6,5 @@ if [ -z "$1" ]; then
 else
     CONTAINER_ID=$1
     # Execute the command inside the specified container
-    docker exec -it $CONTAINER_ID bash -c "source /ros2_ws/install/setup.bash && exec bash"
+    docker exec -it $CONTAINER_ID bash -c "source /opt/ros/humble/setup.bash && source /ros2_ws/install/setup.bash && exec bash"
 fi

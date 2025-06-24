@@ -79,28 +79,25 @@ RUN pip install setuptools==59.6.0
 # Create ROS2 workspace
 RUN mkdir -p /ros2_ws/src
 
-# Copy the ROS2 package folder from the host machine to the container
-COPY ./jetbot_vision_perception /ros2_ws/src/jetbot_vision_perception
+# NOTE:
+# The code under /ros2_ws/src/jetbot_vision_perception will NOT be built in this Docker image.
+# Instead, it will be mounted into the container at runtime (e.g., via run.sh),
+# and then built/installed inside the running container as part of the development workflow.
+#
+# This allows for live code changes without rebuilding the Docker image.
 
 # *** FIX: Change ownership before switching user ***
 RUN chown -R ${USERNAME}:${USERNAME} /ros2_ws
-
-# Switch to jetbot user before building
-USER jetbot
-
-# Build the ROS2 package
-WORKDIR /ros2_ws
-RUN /bin/bash -c "source ${ROS2_SETUP} && colcon build"
-
-# Switch back to root if needed for later steps
-USER root
 
 
 # Set the working directory
 WORKDIR /app
 
-# Copy the application files
-COPY . /app
+# NOTE:
+# The files under /app will NOT be copied or built in this Docker image.
+# Instead, the /app directory will be mounted from the host machine at runtime (e.g., via run.sh),
+# similar to how the ROS2 code is mounted. This allows for live code changes without rebuilding the image.
+
 
 # Ensure the correct version of NumPy is installed before running the application
 RUN pip check

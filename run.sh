@@ -16,6 +16,7 @@ ROS_DOMAIN_ID=7
 
 # Set the volume mappings
 VOLUME_X11=/tmp/.X11-unix/:/tmp/.X11-unix:rw
+VOLUME_ROS_LOG=$HOME/.ros/log:/.ros/log
 
 # Define Docker volumes and environment variables
 ROOT=$(dirname "$0")
@@ -24,9 +25,12 @@ DOCKER_VOLUMES="
 --volume=$ROOT/app:/app \
 --volume=$ROOT/data:/data \
 --volume=$ROOT/out:/out \
---volume=$ROOT/jetbot_vision_perception:/jetbot_code \
+--volume=$ROOT/jetbot_vision_perception:/ros2_ws/src/jetbot_vision_perception \
+--volume=$ROOT/install:/ros2_ws/install \
+--volume=$ROOT/build:/ros2_ws/build \
 --volume=/etc/passwd:/etc/passwd:ro \
 --volume=/etc/group:/etc/group:ro \
+--volume=$VOLUME_ROS_LOG \
 "
 
 DOCKER_ENV_VARS="
@@ -72,6 +76,16 @@ DOCKER_IMAGE=${DOCKER_IMAGE:-jetbot_vision_perception:latest}
 # Define the NumPy version
 NUMPY_VERSION=${NUMPY_VERSION:-1.23.5}
 
+# Define the command to run inside the container
+CMD="pip install numpy==$NUMPY_VERSION && \
+source /opt/ros/humble/setup.bash && \
+if [ -f /ros2_ws/install/setup.bash ]; then \
+    source /ros2_ws/install/setup.bash; \
+else \
+    echo 'WARNING: /ros2_ws/install/setup.bash not found! Please run '\''cd /ros2_ws && colcon build'\'' inside the container to build your ROS2 packages.'; \
+fi; \
+/bin/bash"
+
 # Run the docker command
 # Check if the first input parameter is 'admin'
 if [ "$1" == "user" ]; then
@@ -79,12 +93,11 @@ if [ "$1" == "user" ]; then
 
     sudo docker run --runtime=nvidia -it --user $USER_ID:$GROUP_ID --group-add video --rm --net host --ipc=host --privileged\
         ${DOCKER_ARGS} \
-        --workdir /app \
-        $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && source /ros2_ws/install/setup.bash && /bin/bash"
+        $DOCKER_IMAGE /bin/bash -c  "$CMD"
 else
     echo "Running as ROOT user"
     docker run -it --rm --net host --ipc=host --runtime=nvidia --privileged\
         ${DOCKER_ARGS} \
         --workdir /app \
-        $DOCKER_IMAGE /bin/bash -c "pip install numpy==$NUMPY_VERSION && source /ros2_ws/install/setup.bash && /bin/bash"
+        $DOCKER_IMAGE /bin/bash -c "$CMD"
 fi
