@@ -35,11 +35,6 @@ ENV ROS_DISTRO=humble
 # Define the ROS2 setup script path
 ARG ROS2_SETUP=/opt/ros/$ROS_DISTRO/setup.bash
 
-# Uninstall any existing NumPy versions
-# RUN pip uninstall -y numpy
-
-# Install the specific version of NumPy required by YOLO
-# RUN pip install --force-reinstal numpy==1.23.5
 
 # Install v4l-utils and Qt packages
 RUN apt-get update && apt-get install -y \
@@ -52,6 +47,10 @@ RUN apt-get update && apt-get install -y \
     qt5-qmake \
     qtbase5-dev-tools \
     vim
+
+
+# Install ultralytics tracking mode Python dependencies
+RUN pip install lap>=0.5.12
 
 # Add ROS2 repository and install ROS2 Humble
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \

@@ -8,7 +8,9 @@
 # Get the user id and group id
 ROOT="$(dirname "$(readlink -f "$0")")"
 USER_ID=$(id -u)
+USER_NAME=$(id -un)
 GROUP_ID=$(id -g)
+GROUP_NAME=$(id -gn)
 
 # Set the environment variables
 DISPLAY_VAR=$DISPLAY
@@ -73,7 +75,8 @@ DOCKER_ARGS="${DOCKER_VOLUMES} ${DOCKER_ENV_VARS} ${V4L2_DEVICES} ${I2C_DEVICES}
 # DOCKER_IMAGE=${DOCKER_IMAGE:-ultralytics/ultralytics:latest-jetson-jetpack6}
 DOCKER_IMAGE=${DOCKER_IMAGE:-jetbot_vision_perception:latest}
 
-# Define the NumPy version
+
+# Define the NumPy version required by YOLO
 NUMPY_VERSION=${NUMPY_VERSION:-1.23.5}
 
 # Define the command to run inside the container
@@ -89,7 +92,7 @@ fi; \
 # Run the docker command
 # Check if the first input parameter is 'admin'
 if [ "$1" == "user" ]; then
-    echo "Running as USER with id $USER_ID:$GROUP_ID"
+    echo "Running as USER: $USER_NAME ($USER_ID):$GROUP_NAME ($GROUP_ID)"
 
     sudo docker run --runtime=nvidia -it --user $USER_ID:$GROUP_ID --group-add video --rm --net host --ipc=host --privileged\
         ${DOCKER_ARGS} \

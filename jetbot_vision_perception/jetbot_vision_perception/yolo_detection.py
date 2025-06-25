@@ -29,6 +29,11 @@ from cv_bridge import CvBridge, CvBridgeError # Package to convert between ROS a
 import cv2
 import numpy as np
 from ultralytics import YOLO
+from ultralytics.utils import LOGGER
+import logging
+
+# Set ultralytics logger to warning level to avoid cluttering the console
+LOGGER.setLevel(logging.WARNING)
 
 class YOLODetectionNode(Node):
 
@@ -45,7 +50,7 @@ class YOLODetectionNode(Node):
         
         self.start = self.declare_parameter('start', True).get_parameter_value().bool_value
         self.debug = self.declare_parameter('debug', False).get_parameter_value().bool_value
-        self.model_path = self.declare_parameter('model_path', '/data/yolov8n.engine').get_parameter_value().string_value
+        self.model_path = self.declare_parameter('model_path', '/data/yolov8n.pt').get_parameter_value().string_value
         self.camera_color_topic = self.declare_parameter('camera_color_topic', '/camera/color/image_raw').get_parameter_value().string_value
         self.camera_depth_topic = self.declare_parameter('camera_depth_topic', '/camera/depth/image_raw').get_parameter_value().string_value
         self.img_pub_topic = self.declare_parameter('image_depth_topic', 'depth_image_raw').get_parameter_value().string_value
@@ -60,9 +65,33 @@ class YOLODetectionNode(Node):
         self.add_on_set_parameters_callback(self.parameter_callback)
 
         # YOLO model initialization
-        # model_path = "/data/yolov8n.engine"
-        self.trt_model = YOLO(self.model_path, task="detect")
-        
+        # model_path = "/data/yolov8n.pt"
+        # self.trt_model = YOLO(self.model_path, task="detect")
+        self.trt_model = YOLO(self.model_path)
+
+        self.declare_parameter('class_labels', '')
+        self.tracking_mode = False
+
+        # Set class_labels to YOLO model's class names and update the parameter server
+        # This ensures the parameter server always reflects the actual model classes
+        if hasattr(self.trt_model, "names") and self.trt_model.names:
+            self.class_labels = ','.join(self.trt_model.names.values())
+            self.get_logger().info(f"Class labels: {self.class_labels}")
+        else:
+            self.class_labels = ''
+            self.get_logger().warn("YOLO model does not provide class names.")
+
+
+        # Update class_labels to the parameter server
+        self.set_parameters([
+            rclpy.parameter.Parameter(
+                'class_labels',
+                rclpy.Parameter.Type.STRING,
+                self.class_labels
+            )
+        ])
+
+
         # CvBridge initialization
         self.bridge = CvBridge()
         
@@ -80,17 +109,31 @@ class YOLODetectionNode(Node):
         self.depth_frame = None  # Store depth frame
 
 
+    #
+    # Callbacks for color and depth images
+    #
     def color_image_callback(self, msg):
         self.get_logger().debug('Received color image')
         try:
             # Convert ROS Image to OpenCV frame
             frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-            # YOLO detection
-            results = self.trt_model(frame)
+            
+            # Use detection or tracking depending on mode
+            if self.tracking_mode:
+                # YOLO tracking
+                results = self.trt_model.track(frame, stream=True, persist=True, tracker="bytetrack.yaml")
+            else:
+                # YOLO detection
+                results = self.trt_model.predict(frame)
+
             self.process_results(frame, results)
         except Exception as e:
             self.get_logger().error(f"Failed to process color image: {e}")
-    
+
+
+    #
+    #   Callback for depth image
+    #
     def depth_image_callback(self, msg):
         self.get_logger().debug('Received depth image')
         try:
@@ -102,10 +145,16 @@ class YOLODetectionNode(Node):
         except Exception as e:
             self.get_logger().error(f"Failed to process depth image: {e}")
 
+
+    #
+    #   Process results from YOLO detection or tracking
+    #
     def process_results(self, color_frame, results):
         if self.depth_frame is None:
             self.get_logger().warn("Depth frame is not available.")
             return
+
+        person_detected_and_close = False
 
         for result in results:
             boxes = result.boxes
@@ -114,17 +163,40 @@ class YOLODetectionNode(Node):
                 conf = box.conf[0].cpu().numpy()
                 cls = int(box.cls[0].cpu().numpy())
 
+                class_name = self.trt_model.names[cls]
+
                 # Calculate median depth within bounding box
                 object_depth = np.median(self.depth_frame[y1:y2, x1:x2])
                 label = f"{self.trt_model.names[cls]}: {conf:.2f}, {object_depth:.2f}m"
 
-                # Draw bounding box
-                cv2.rectangle(color_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(color_frame, f"{self.trt_model.names[cls]}: {conf:.2f}", (x1, y1 - 5), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                cv2.putText(color_frame, label, (x1, y1 - 5),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                # Tracking mode: get track ID if available ---
+                track_id = getattr(box, 'id', None)
+                if track_id is not None:
+                    label = f"ID {int(track_id[0].cpu().numpy())} | {label}"
 
+                # Default color: green
+                box_color = (0, 255, 0)
+
+                # If in tracking mode and person is close, use yellow
+                if class_name == "person" and object_depth < 0.7:
+                    box_color = (0, 255, 255)  # Yellow
+                    person_detected_and_close = True
+                    if self.tracking_mode:
+                        self.get_logger().info("Tracked person within 0.7m, track_id: {}".format(
+                            int(track_id[0].cpu().numpy()) if track_id is not None else "N/A"
+                        ))
+
+                # Draw bounding box and label
+                cv2.rectangle(color_frame, (x1, y1), (x2, y2), box_color, 2)
+                cv2.putText(color_frame, label, (x1, y1 - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 2)
+
+
+        # Switch to tracking mode if person detected and close
+        if person_detected_and_close and not self.tracking_mode:
+            self.get_logger().info("Person detected within 0.7m! Switching to YOLO tracking mode.")
+            self.trt_model = YOLO(self.model_path, task="track")
+            self.tracking_mode = True
 
         if self.debug:
             # Display the frame
