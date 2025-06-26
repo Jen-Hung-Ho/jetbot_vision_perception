@@ -81,13 +81,13 @@ NUMPY_VERSION=${NUMPY_VERSION:-1.23.5}
 
 # Define the command to run inside the container
 CMD="pip install numpy==$NUMPY_VERSION && \
-source /opt/ros/humble/setup.bash && \
-if [ -f /ros2_ws/install/setup.bash ]; then \
-    source /ros2_ws/install/setup.bash; \
-else \
-    echo 'WARNING: /ros2_ws/install/setup.bash not found! Please run '\''cd /ros2_ws && colcon build'\'' inside the container to build your ROS2 packages.'; \
-fi; \
-/bin/bash"
+    source /opt/ros/humble/setup.bash && \
+    if [ -f /ros2_ws/install/setup.bash ]; then \
+        source /ros2_ws/install/setup.bash; \
+    else \
+        echo 'WARNING: /ros2_ws/install/setup.bash not found! Please run '\''cd /ros2_ws && colcon build'\'' inside the container to build your ROS2 packages.'; \
+    fi; \
+    /bin/bash"
 
 # Run the docker command
 # Check if the first input parameter is 'admin'
