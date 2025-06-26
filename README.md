@@ -58,7 +58,12 @@ docker build --network host -t jetbot_vision_perception
   ros2 run jetbot_vision_perception yolo_detection --ros-args -p model_path:=/data/yolov11n.engine
   ```
 
-
 - python3 YOLO_export_Models.py engine 11
 - python3 webcam_test.py
 - python3 YOLO_detection_webcam.py
+
+  ### References
+- https://www.jetson-ai-lab.com/tutorial_ultralytics.html
+  - [YOLO 11](https://huggingface.co/Ultralytics/YOLO11/blob/365ed86341e7a7456dbc4cafc09f138814ce9ff1/yolo11n.pt)
+- https://github.com/mgonzs13/yolo_ros
+- https://docs.ultralytics.com/reference/engine/results/
