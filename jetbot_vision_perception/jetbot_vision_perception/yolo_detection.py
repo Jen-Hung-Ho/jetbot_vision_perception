@@ -26,6 +26,7 @@ from rclpy.node import Node
 from rcl_interfaces.msg import ParameterType, SetParametersResult, Parameter
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError # Package to convert between ROS and OpenCV Images
+import message_filters
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -94,12 +95,18 @@ class YOLODetectionNode(Node):
 
         # CvBridge initialization
         self.bridge = CvBridge()
-        
+
         # Subscriptions
         # self.create_subscription(Image, '/camera/color/image_raw', self.color_image_callback, 10)
-        self.create_subscription(Image, self.camera_color_topic, self.color_image_callback, 10)
         # self.create_subscription(Image, '/camera/depth/image_raw', self.depth_image_callback, 10)
-        self.create_subscription(Image, self.camera_depth_topic, self.depth_image_callback, 10)
+        self.color_sub = message_filters.Subscriber(self, Image, self.camera_color_topic)
+        self.depth_sub = message_filters.Subscriber(self, Image, self.camera_depth_topic)
+
+        # ApproximateTimeSynchronizer to synchronize color and depth images
+        # This synchronizer will ensure that both color and depth images are processed togethe
+        self._synchronizer = message_filters.ApproximateTimeSynchronizer( 
+            [self.color_sub, self.depth_sub], queue_size=10, slop=0.1)
+        self._synchronizer.registerCallback(self.sync_image_callbacks)
 
         # Create the publisher, This publish wil will publish an Image
         # to the image_row topic, The queue size is 10 messages
@@ -108,42 +115,31 @@ class YOLODetectionNode(Node):
         # Initialize depth frame
         self.depth_frame = None  # Store depth frame
 
-
     #
-    # Callbacks for color and depth images
+    # Synchronize color and depth image callbacks
+    # This is used to ensure that both color and depth images are processed together
     #
-    def color_image_callback(self, msg):
-        self.get_logger().debug('Received color image')
+    def sync_image_callbacks(self, color_msg, depth_msg):
+        self.get_logger().debug('Synchronized color and depth images received')
+        
         try:
-            # Convert ROS Image to OpenCV frame
-            frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-            
-            # Use detection or tracking depending on mode
+            # Convert ROS Image messages to OpenCV images
+            color_frame = self.bridge.imgmsg_to_cv2(color_msg, "bgr8")
+            depth_frame = self.bridge.imgmsg_to_cv2(depth_msg, "16UC1")
+            # Store depth frame for processing
+            self.depth_frame = depth_frame  * 0.001  # Convert mm to meters
+
+            # Run YOLO detection or tracking
             if self.tracking_mode:
-                # YOLO tracking
-                results = self.trt_model.track(frame, stream=True, persist=True, tracker="bytetrack.yaml")
+                results = self.trt_model.track(color_frame, stream=True, persist=True, tracker="bytetrack.yaml")
             else:
-                # YOLO detection
-                results = self.trt_model.predict(frame)
+                results = self.trt_model.predict(color_frame)
 
-            self.process_results(frame, results)
+            # Process results (draw boxes, publish, etc.)
+            self.process_results(color_frame, results)
         except Exception as e:
-            self.get_logger().error(f"Failed to process color image: {e}")
+            self.get_logger().error(f"Failed to process synchronized images: {e}")
 
-
-    #
-    #   Callback for depth image
-    #
-    def depth_image_callback(self, msg):
-        self.get_logger().debug('Received depth image')
-        try:
-            # Convert ROS Image to OpenCV frame
-            frame = self.bridge.imgmsg_to_cv2(msg, "16UC1")
-            # For depth, process if required for YOLO
-            # Convert depth image to meters
-            self.depth_frame = frame * 0.001  # Scale millimeters to meters
-        except Exception as e:
-            self.get_logger().error(f"Failed to process depth image: {e}")
 
 
     #
@@ -182,9 +178,11 @@ class YOLODetectionNode(Node):
                     box_color = (0, 255, 255)  # Yellow
                     person_detected_and_close = True
                     if self.tracking_mode:
-                        self.get_logger().info("Tracked person within 0.7m, track_id: {}".format(
-                            int(track_id[0].cpu().numpy()) if track_id is not None else "N/A"
-                        ))
+                        self.get_logger().info(
+                            "SYNC-HO: Tracked person within {:.2f}m, track_id: {}".format(object_depth,
+                                int(track_id[0].cpu().numpy()) if track_id is not None else "N/A"
+                            )
+                        )
 
                 # Draw bounding box and label
                 cv2.rectangle(color_frame, (x1, y1), (x2, y2), box_color, 2)
