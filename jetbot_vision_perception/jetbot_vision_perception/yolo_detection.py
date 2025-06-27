@@ -31,6 +31,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 from ultralytics.utils import LOGGER
+from collections import defaultdict
 import logging
 
 # Set ultralytics logger to warning level to avoid cluttering the console
@@ -72,6 +73,7 @@ class YOLODetectionNode(Node):
 
         self.declare_parameter('class_labels', '')
         self.tracking_mode = False
+        self.track_history = defaultdict(lambda: [])
 
         # Set class_labels to YOLO model's class names and update the parameter server
         # This ensures the parameter server always reflects the actual model classes
@@ -174,6 +176,7 @@ class YOLODetectionNode(Node):
                 box_color = (0, 255, 0)
 
                 # If in tracking mode and person is close, use yellow
+                # TODO: tempory code for testing YOLO tracking mode
                 if class_name == "person" and object_depth < 0.7:
                     box_color = (0, 255, 255)  # Yellow
                     person_detected_and_close = True
@@ -183,6 +186,20 @@ class YOLODetectionNode(Node):
                                 int(track_id[0].cpu().numpy()) if track_id is not None else "N/A"
                             )
                         )
+
+                # TODO: tempory code for testing YOLO tracking mode
+                if self.tracking_mode and track_id is not None:
+                    tid = int(track_id[0].cpu().numpy())
+                    center = (int((x1 + x2) / 2), int((y1 + y2) / 2))
+                    self.track_history[tid].append(center)
+                    # Limit history length
+                    max_history = 30
+                    if len(self.track_history[tid]) > max_history:
+                        self.track_history[tid].pop(0)
+                    # Draw the track history
+                    points = self.track_history[tid]
+                    for j in range(1, len(points)):
+                        cv2.line(color_frame, points[j - 1], points[j], (0, 0, 255), 2)
 
                 # Draw bounding box and label
                 cv2.rectangle(color_frame, (x1, y1), (x2, y2), box_color, 2)
