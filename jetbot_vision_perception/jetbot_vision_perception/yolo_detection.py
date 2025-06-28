@@ -23,7 +23,8 @@
 
 import rclpy
 from rclpy.node import Node
-from rcl_interfaces.msg import ParameterType, SetParametersResult, Parameter
+from rclpy.parameter import Parameter
+from rcl_interfaces.msg import ParameterType, SetParametersResult
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError # Package to convert between ROS and OpenCV Images
 import message_filters
@@ -44,6 +45,13 @@ class YOLODetectionNode(Node):
             if param.name == 'start' and param.type_ == Parameter.Type.BOOL:
                 self.start = param.value
                 self.get_logger().info('start= {}'.format(bool(param.value)))
+            elif param.name == 'target_class' and param.type_ == Parameter.Type.STRING:
+                self.target_class = param.value
+                self.get_logger().info('target_class= {}'.format(self.target_class))
+            elif param.name == 'tracking_mode' and param.type_ == Parameter.Type.BOOL:
+                self.tracking_mode = param.value
+                self.get_logger().info('tracking_mode= {}'.format(bool(param.value)))
+
 
         return SetParametersResult(successful=True)
 
@@ -53,15 +61,21 @@ class YOLODetectionNode(Node):
         self.start = self.declare_parameter('start', True).get_parameter_value().bool_value
         self.debug = self.declare_parameter('debug', False).get_parameter_value().bool_value
         self.model_path = self.declare_parameter('model_path', '/data/yolov8n.pt').get_parameter_value().string_value
+        self.target_class = self.declare_parameter('target_class', 'person').get_parameter_value().string_value
+        self.tracking_mode = self.declare_parameter('tracking_mode', False).get_parameter_value().bool_value
         self.camera_color_topic = self.declare_parameter('camera_color_topic', '/camera/color/image_raw').get_parameter_value().string_value
         self.camera_depth_topic = self.declare_parameter('camera_depth_topic', '/camera/depth/image_raw').get_parameter_value().string_value
         self.img_pub_topic = self.declare_parameter('image_depth_topic', 'depth_image_raw').get_parameter_value().string_value
-        
+
+        self.get_logger().info("-----------------------------------------------------")
         self.get_logger().info('start              : {}'.format(self.start))
         self.get_logger().info('model_path         : {}'.format(self.model_path))
         self.get_logger().info('camera_color_topic : {}'.format(self.camera_color_topic))
         self.get_logger().info('camera_depth_topic : {}'.format(self.camera_depth_topic))
         self.get_logger().info('pub_img_depth_topic: {}'.format(self.img_pub_topic))
+        self.get_logger().info('target_class       : {}'.format(self.target_class))
+        self.get_logger().info('tracking_mode      : {}'.format(self.tracking_mode))
+        self.get_logger().info("-----------------------------------------------------")
 
         # Add parameters callback 
         self.add_on_set_parameters_callback(self.parameter_callback)
@@ -72,14 +86,15 @@ class YOLODetectionNode(Node):
         self.trt_model = YOLO(self.model_path)
 
         self.declare_parameter('class_labels', '')
-        self.tracking_mode = False
         self.track_history = defaultdict(lambda: [])
 
         # Set class_labels to YOLO model's class names and update the parameter server
         # This ensures the parameter server always reflects the actual model classes
         if hasattr(self.trt_model, "names") and self.trt_model.names:
             self.class_labels = ','.join(self.trt_model.names.values())
+            self.get_logger().info("-----------------------------------------------------")
             self.get_logger().info(f"Class labels: {self.class_labels}")
+            self.get_logger().info("-----------------------------------------------------")
         else:
             self.class_labels = ''
             self.get_logger().warn("YOLO model does not provide class names.")
@@ -123,24 +138,25 @@ class YOLODetectionNode(Node):
     #
     def sync_image_callbacks(self, color_msg, depth_msg):
         self.get_logger().debug('Synchronized color and depth images received')
-        
-        try:
-            # Convert ROS Image messages to OpenCV images
-            color_frame = self.bridge.imgmsg_to_cv2(color_msg, "bgr8")
-            depth_frame = self.bridge.imgmsg_to_cv2(depth_msg, "16UC1")
-            # Store depth frame for processing
-            self.depth_frame = depth_frame  * 0.001  # Convert mm to meters
 
-            # Run YOLO detection or tracking
-            if self.tracking_mode:
-                results = self.trt_model.track(color_frame, stream=True, persist=True, tracker="bytetrack.yaml")
-            else:
-                results = self.trt_model.predict(color_frame)
+        if (self.start == True):
+            try:
+                # Convert ROS Image messages to OpenCV images
+                color_frame = self.bridge.imgmsg_to_cv2(color_msg, "bgr8")
+                depth_frame = self.bridge.imgmsg_to_cv2(depth_msg, "16UC1")
+                # Store depth frame for processing
+                self.depth_frame = depth_frame  * 0.001  # Convert mm to meters
 
-            # Process results (draw boxes, publish, etc.)
-            self.process_results(color_frame, results)
-        except Exception as e:
-            self.get_logger().error(f"Failed to process synchronized images: {e}")
+                # Run YOLO detection or tracking
+                if self.tracking_mode:
+                    results = self.trt_model.track(color_frame, stream=True, persist=True, tracker="bytetrack.yaml")
+                else:
+                    results = self.trt_model.predict(color_frame)
+
+                # Process results (draw boxes, publish, etc.)
+                self.process_results(color_frame, results)
+            except Exception as e:
+                self.get_logger().error(f"Failed to process synchronized images: {e}")
 
 
 
@@ -177,7 +193,7 @@ class YOLODetectionNode(Node):
 
                 # If in tracking mode and person is close, use yellow
                 # TODO: tempory code for testing YOLO tracking mode
-                if class_name == "person" and object_depth < 0.7:
+                if self.tracking_mode and class_name == "person" and object_depth < 0.7:
                     box_color = (0, 255, 255)  # Yellow
                     person_detected_and_close = True
                     if self.tracking_mode:
