@@ -45,9 +45,9 @@ class YOLODetectionNode(Node):
             if param.name == 'start' and param.type_ == Parameter.Type.BOOL:
                 self.start = param.value
                 self.get_logger().info('start= {}'.format(bool(param.value)))
-            elif param.name == 'target_class' and param.type_ == Parameter.Type.STRING:
-                self.target_class = param.value
-                self.get_logger().info('target_class= {}'.format(self.target_class))
+            elif param.name == 'target_classes' and param.type_ == Parameter.Type.STRING_ARRAY:
+                self.target_classes = param.value
+                self.get_logger().info('target_classes= {}'.format(self.target_classes))
             elif param.name == 'tracking_mode' and param.type_ == Parameter.Type.BOOL:
                 self.tracking_mode = param.value
                 self.get_logger().info('tracking_mode= {}'.format(bool(param.value)))
@@ -61,7 +61,7 @@ class YOLODetectionNode(Node):
         self.start = self.declare_parameter('start', True).get_parameter_value().bool_value
         self.debug = self.declare_parameter('debug', False).get_parameter_value().bool_value
         self.model_path = self.declare_parameter('model_path', '/data/yolov8n.pt').get_parameter_value().string_value
-        self.target_class = self.declare_parameter('target_class', 'person').get_parameter_value().string_value
+        self.target_classes = self.declare_parameter('target_classes', ['person', 'sports ball']).get_parameter_value().string_array_value
         self.tracking_mode = self.declare_parameter('tracking_mode', False).get_parameter_value().bool_value
         self.camera_color_topic = self.declare_parameter('camera_color_topic', '/camera/color/image_raw').get_parameter_value().string_value
         self.camera_depth_topic = self.declare_parameter('camera_depth_topic', '/camera/depth/image_raw').get_parameter_value().string_value
@@ -73,7 +73,7 @@ class YOLODetectionNode(Node):
         self.get_logger().info('camera_color_topic : {}'.format(self.camera_color_topic))
         self.get_logger().info('camera_depth_topic : {}'.format(self.camera_depth_topic))
         self.get_logger().info('pub_img_depth_topic: {}'.format(self.img_pub_topic))
-        self.get_logger().info('target_class       : {}'.format(self.target_class))
+        self.get_logger().info('target_classes     : {}'.format(self.target_classes))
         self.get_logger().info('tracking_mode      : {}'.format(self.tracking_mode))
         self.get_logger().info("-----------------------------------------------------")
 
@@ -132,6 +132,7 @@ class YOLODetectionNode(Node):
         # Initialize depth frame
         self.depth_frame = None  # Store depth frame
 
+
     #
     # Synchronize color and depth image callbacks
     # This is used to ensure that both color and depth images are processed together
@@ -168,71 +169,62 @@ class YOLODetectionNode(Node):
             self.get_logger().warn("Depth frame is not available.")
             return
 
-        person_detected_and_close = False
-
         for result in results:
             boxes = result.boxes
             for box in boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0].cpu().numpy())
+                # Get confidence score
                 conf = box.conf[0].cpu().numpy()
+                # Get class ID and class name
                 cls = int(box.cls[0].cpu().numpy())
-
                 class_name = self.trt_model.names[cls]
 
-                # Calculate median depth within bounding box
+                # Use depth frame to calculate median depth within bounding box
                 object_depth = np.median(self.depth_frame[y1:y2, x1:x2])
+                # Label with class name, confidence, and depth
                 label = f"{self.trt_model.names[cls]}: {conf:.2f}, {object_depth:.2f}m"
 
-                # Tracking mode: get track ID if available ---
-                track_id = getattr(box, 'id', None)
-                if track_id is not None:
-                    label = f"ID {int(track_id[0].cpu().numpy())} | {label}"
 
                 # Default color: green
                 box_color = (0, 255, 0)
 
-                # If in tracking mode and person is close, use yellow
-                # TODO: tempory code for testing YOLO tracking mode
-                if self.tracking_mode and class_name == "person" and object_depth < 0.7:
-                    box_color = (0, 255, 255)  # Yellow
-                    person_detected_and_close = True
-                    if self.tracking_mode:
-                        self.get_logger().info(
-                            "SYNC-HO: Tracked person within {:.2f}m, track_id: {}".format(object_depth,
-                                int(track_id[0].cpu().numpy()) if track_id is not None else "N/A"
+
+                if self.tracking_mode:
+                    # Tracking mode: get track ID if available
+                    track_id = getattr(box, 'id', None)
+                    if track_id is not None:
+                        label = f"ID {int(track_id[0].cpu().numpy())} | {label}"
+
+                        # Tracking history drawing
+                        tid = int(track_id[0].cpu().numpy())
+                        center = (int((x1 + x2) / 2), int((y1 + y2) / 2))
+                        self.track_history[tid].append(center)
+                        # Limit history length
+                        max_history = 30
+                        if len(self.track_history[tid]) > max_history:
+                            self.track_history[tid].pop(0)
+                        # Draw the track history
+                        points = self.track_history[tid]
+                        for j in range(1, len(points)):
+                            cv2.line(color_frame, points[j - 1], points[j], (0, 0, 255), 2)
+                    
+                    # Check if the object is target classes and within depth threshold
+                    if (class_name in self.target_classes and object_depth < 0.7):
+                        # Yellow box for close person detection
+                        box_color = (0, 255, 255)
+                        if self.tracking_mode:
+                            self.get_logger().info(
+                                "SYNC 7: Tracked {} within {:.2f}m, track_id: {}".format(class_name, object_depth,
+                                    int(track_id[0].cpu().numpy()) if track_id is not None else "N/A"
                             )
                         )
 
-                # TODO: tempory code for testing YOLO tracking mode
-                if self.tracking_mode and track_id is not None:
-                    tid = int(track_id[0].cpu().numpy())
-                    center = (int((x1 + x2) / 2), int((y1 + y2) / 2))
-                    self.track_history[tid].append(center)
-                    # Limit history length
-                    max_history = 30
-                    if len(self.track_history[tid]) > max_history:
-                        self.track_history[tid].pop(0)
-                    # Draw the track history
-                    points = self.track_history[tid]
-                    for j in range(1, len(points)):
-                        cv2.line(color_frame, points[j - 1], points[j], (0, 0, 255), 2)
 
                 # Draw bounding box and label
                 cv2.rectangle(color_frame, (x1, y1), (x2, y2), box_color, 2)
                 cv2.putText(color_frame, label, (x1, y1 - 5),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 2)
 
-
-        # Switch to tracking mode if person detected and close
-        if person_detected_and_close and not self.tracking_mode:
-            self.get_logger().info("Person detected within 0.7m! Switching to YOLO tracking mode.")
-            self.trt_model = YOLO(self.model_path, task="track")
-            self.tracking_mode = True
-
-        if self.debug:
-            # Display the frame
-            cv2.imshow("YOLO Detection", color_frame)
-            cv2.waitKey(1)
 
         try:
             self.image_pub.publish(self.bridge.cv2_to_imgmsg(color_frame, "bgr8"))
