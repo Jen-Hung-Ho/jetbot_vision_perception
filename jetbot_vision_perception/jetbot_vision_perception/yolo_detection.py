@@ -26,6 +26,7 @@ from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rcl_interfaces.msg import ParameterType, SetParametersResult
 from sensor_msgs.msg import Image
+from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose, ObjectHypothesis
 from cv_bridge import CvBridge, CvBridgeError # Package to convert between ROS and OpenCV Images
 import message_filters
 import cv2
@@ -66,6 +67,7 @@ class YOLODetectionNode(Node):
         self.camera_color_topic = self.declare_parameter('camera_color_topic', '/camera/color/image_raw').get_parameter_value().string_value
         self.camera_depth_topic = self.declare_parameter('camera_depth_topic', '/camera/depth/image_raw').get_parameter_value().string_value
         self.img_pub_topic = self.declare_parameter('image_depth_topic', 'depth_image_raw').get_parameter_value().string_value
+        self.detect_topic = self.declare_parameter('detect_topic', '/yolo/detections').get_parameter_value().string_value
 
         self.get_logger().info("-----------------------------------------------------")
         self.get_logger().info('start              : {}'.format(self.start))
@@ -73,6 +75,7 @@ class YOLODetectionNode(Node):
         self.get_logger().info('camera_color_topic : {}'.format(self.camera_color_topic))
         self.get_logger().info('camera_depth_topic : {}'.format(self.camera_depth_topic))
         self.get_logger().info('pub_img_depth_topic: {}'.format(self.img_pub_topic))
+        self.get_logger().info('pub_detect_topic   : {}'.format(self.detect_topic))
         self.get_logger().info('target_classes     : {}'.format(self.target_classes))
         self.get_logger().info('tracking_mode      : {}'.format(self.tracking_mode))
         self.get_logger().info("-----------------------------------------------------")
@@ -129,6 +132,9 @@ class YOLODetectionNode(Node):
         # to the image_row topic, The queue size is 10 messages
         self.image_pub = self.create_publisher(Image, self.img_pub_topic, 10)
 
+        # Create the publisher for detection results
+        self.detection_pub = self.create_publisher(Detection2DArray, self.detect_topic, 10)
+
         # Initialize depth frame
         self.depth_frame = None  # Store depth frame
 
@@ -155,7 +161,7 @@ class YOLODetectionNode(Node):
                     results = self.trt_model.predict(color_frame)
 
                 # Process results (draw boxes, publish, etc.)
-                self.process_results(color_frame, results)
+                self.process_results(color_msg, color_frame, results)
             except Exception as e:
                 self.get_logger().error(f"Failed to process synchronized images: {e}")
 
@@ -164,10 +170,13 @@ class YOLODetectionNode(Node):
     #
     #   Process results from YOLO detection or tracking
     #
-    def process_results(self, color_frame, results):
+    def process_results(self, color_msg, color_frame, results):
         if self.depth_frame is None:
             self.get_logger().warn("Depth frame is not available.")
             return
+
+        detection_array = Detection2DArray()
+        detection_array.header = color_msg.header  # Use the header from the input image
 
         for result in results:
             boxes = result.boxes
@@ -184,6 +193,10 @@ class YOLODetectionNode(Node):
                 # Label with class name, confidence, and depth
                 label = f"{self.trt_model.names[cls]}: {conf:.2f}, {object_depth:.2f}m"
 
+                # Create Detection2D message
+                # This method will create a Detection2D message with the bounding box coordinates, class I
+                detection = self.make_detection2d(x1, y1, x2, y2, cls, conf)
+
 
                 # Default color: green
                 box_color = (0, 255, 0)
@@ -195,11 +208,11 @@ class YOLODetectionNode(Node):
                     if track_id is not None:
                         label = f"ID {int(track_id[0].cpu().numpy())} | {label}"
 
-                        # Tracking history drawing
+                        # Track history for visualization (draw lines for object trajectory)
                         tid = int(track_id[0].cpu().numpy())
                         center = (int((x1 + x2) / 2), int((y1 + y2) / 2))
                         self.track_history[tid].append(center)
-                        # Limit history length
+                        # Limit history length for each track
                         max_history = 30
                         if len(self.track_history[tid]) > max_history:
                             self.track_history[tid].pop(0)
@@ -220,16 +233,54 @@ class YOLODetectionNode(Node):
                         )
 
 
+                # --- Custom detection.id encoding for downstream use ---
+                # In tracking mode and if a track_id is available, encode as "track_id,object_depth"
+                # In non-tracking mode, encode as "-1,object_depth"
+                # This allows clients to parse both the track ID and the estimated object depth from the id field.
+                if self.tracking_mode and track_id is not None:
+                    # Publish detection with track ID, object depth - custom message not standard
+                    detection.id = "{},{:.2f}".format(int(track_id[0].cpu().numpy()), object_depth)
+                else:
+                    # Non-tracking mode: use default tracking ID -1
+                    detection.id = "-1,{:.2f}".format(object_depth)
+
                 # Draw bounding box and label
                 cv2.rectangle(color_frame, (x1, y1), (x2, y2), box_color, 2)
                 cv2.putText(color_frame, label, (x1, y1 - 5),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 2)
+                
+                detection_array.detections.append(detection)
+                # end of for box in result.boxes
 
+        # end of rulst in results
+        self.detection_pub.publish(detection_array)
 
         try:
             self.image_pub.publish(self.bridge.cv2_to_imgmsg(color_frame, "bgr8"))
         except CvBridgeError as e:
             self.get_logger().error(e)
+
+    #
+    #   Create a Detection2D message from bounding box coordinates, class ID, and confidence
+    #
+    def make_detection2d(self, x1, y1, x2, y2, cls, conf):
+        # Create Detection2D message
+        detection = Detection2D()
+        detection.bbox.center.position.x = float((x1 + x2) / 2)
+        detection.bbox.center.position.y = float((y1 + y2) / 2)
+        detection.bbox.size_x = float(x2 - x1)
+        detection.bbox.size_y = float(y2 - y1)
+
+        # Create ObjectHypothesisWithPose message
+        hypothesis = ObjectHypothesisWithPose()
+        hypothesis.hypothesis = ObjectHypothesis()
+        # class_id: "\x02"
+        hypothesis.hypothesis.class_id = str(cls)
+        hypothesis.hypothesis.score = float(conf)
+        detection.results.append(hypothesis)
+
+        return detection
+
 
 def main(args=None):
     rclpy.init(args=args)

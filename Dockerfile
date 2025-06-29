@@ -57,6 +57,7 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | a
     sh -c 'echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list' && \
     apt-get update && apt-get install -y \
     ros-humble-desktop \
+    ros-humble-vision-msgs \
     python3-rosdep \
     python3-colcon-common-extensions && \
     rosdep init && \
