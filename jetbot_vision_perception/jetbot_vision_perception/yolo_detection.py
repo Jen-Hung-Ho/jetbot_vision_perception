@@ -88,13 +88,14 @@ class YOLODetectionNode(Node):
         # self.trt_model = YOLO(self.model_path, task="detect")
         self.trt_model = YOLO(self.model_path)
 
-        self.declare_parameter('class_labels', '')
+        # Initialzie class labels as an empty list string array
+        self.declare_parameter('class_labels', [''])
         self.track_history = defaultdict(lambda: [])
 
         # Set class_labels to YOLO model's class names and update the parameter server
         # This ensures the parameter server always reflects the actual model classes
         if hasattr(self.trt_model, "names") and self.trt_model.names:
-            self.class_labels = ','.join(self.trt_model.names.values())
+            self.class_labels = list(self.trt_model.names.values())
             self.get_logger().info("-----------------------------------------------------")
             self.get_logger().info(f"Class labels: {self.class_labels}")
             self.get_logger().info("-----------------------------------------------------")
@@ -107,7 +108,7 @@ class YOLODetectionNode(Node):
         self.set_parameters([
             rclpy.parameter.Parameter(
                 'class_labels',
-                rclpy.Parameter.Type.STRING,
+                rclpy.Parameter.Type.STRING_ARRAY,
                 self.class_labels
             )
         ])
