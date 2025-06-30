@@ -66,16 +66,16 @@ class YOLODetectionNode(Node):
         self.tracking_mode = self.declare_parameter('tracking_mode', False).get_parameter_value().bool_value
         self.camera_color_topic = self.declare_parameter('camera_color_topic', '/camera/color/image_raw').get_parameter_value().string_value
         self.camera_depth_topic = self.declare_parameter('camera_depth_topic', '/camera/depth/image_raw').get_parameter_value().string_value
-        self.img_pub_topic = self.declare_parameter('image_depth_topic', 'depth_image_raw').get_parameter_value().string_value
-        self.detect_topic = self.declare_parameter('detect_topic', '/yolo/detections').get_parameter_value().string_value
+        self.overlay_topic = self.declare_parameter('overlay_image_topic', '/yolo/overlay').get_parameter_value().string_value
+        self.detections_topic = self.declare_parameter('detections_topic', '/yolo/detections').get_parameter_value().string_value
 
         self.get_logger().info("-----------------------------------------------------")
         self.get_logger().info('start              : {}'.format(self.start))
         self.get_logger().info('model_path         : {}'.format(self.model_path))
         self.get_logger().info('camera_color_topic : {}'.format(self.camera_color_topic))
         self.get_logger().info('camera_depth_topic : {}'.format(self.camera_depth_topic))
-        self.get_logger().info('pub_img_depth_topic: {}'.format(self.img_pub_topic))
-        self.get_logger().info('pub_detect_topic   : {}'.format(self.detect_topic))
+        self.get_logger().info('overlay_image_topic: {}'.format(self.overlay_topic))
+        self.get_logger().info('detections_topic   : {}'.format(self.detections_topic))
         self.get_logger().info('target_classes     : {}'.format(self.target_classes))
         self.get_logger().info('tracking_mode      : {}'.format(self.tracking_mode))
         self.get_logger().info("-----------------------------------------------------")
@@ -131,10 +131,10 @@ class YOLODetectionNode(Node):
 
         # Create the publisher, This publish wil will publish an Image
         # to the image_row topic, The queue size is 10 messages
-        self.image_pub = self.create_publisher(Image, self.img_pub_topic, 10)
+        self.overlay_topic_pub = self.create_publisher(Image, self.overlay_topic, 10)
 
         # Create the publisher for detection results
-        self.detection_pub = self.create_publisher(Detection2DArray, self.detect_topic, 10)
+        self.detections_topic_pub = self.create_publisher(Detection2DArray, self.detections_topic, 10)
 
         # Initialize depth frame
         self.depth_frame = None  # Store depth frame
@@ -254,10 +254,10 @@ class YOLODetectionNode(Node):
                 # end of for box in result.boxes
 
         # end of rulst in results
-        self.detection_pub.publish(detection_array)
+        self.detections_topic_pub.publish(detection_array)
 
         try:
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(color_frame, "bgr8"))
+            self.overlay_topic_pub.publish(self.bridge.cv2_to_imgmsg(color_frame, "bgr8"))
         except CvBridgeError as e:
             self.get_logger().error(e)
 
