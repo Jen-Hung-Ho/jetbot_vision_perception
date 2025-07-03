@@ -21,6 +21,7 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
+from matplotlib import scale
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
@@ -68,16 +69,18 @@ class YOLODetectionNode(Node):
         self.camera_depth_topic = self.declare_parameter('camera_depth_topic', '/camera/depth/image_raw').get_parameter_value().string_value
         self.overlay_topic = self.declare_parameter('overlay_image_topic', '/yolo/overlay').get_parameter_value().string_value
         self.detections_topic = self.declare_parameter('detections_topic', '/yolo/detections').get_parameter_value().string_value
+        self.overlay_scale_percent = self.declare_parameter('overlay_scale_percent', 50).get_parameter_value().integer_value
 
         self.get_logger().info("-----------------------------------------------------")
-        self.get_logger().info('start              : {}'.format(self.start))
-        self.get_logger().info('model_path         : {}'.format(self.model_path))
-        self.get_logger().info('camera_color_topic : {}'.format(self.camera_color_topic))
-        self.get_logger().info('camera_depth_topic : {}'.format(self.camera_depth_topic))
-        self.get_logger().info('overlay_image_topic: {}'.format(self.overlay_topic))
-        self.get_logger().info('detections_topic   : {}'.format(self.detections_topic))
-        self.get_logger().info('target_classes     : {}'.format(self.target_classes))
-        self.get_logger().info('tracking_mode      : {}'.format(self.tracking_mode))
+        self.get_logger().info('start                : {}'.format(self.start))
+        self.get_logger().info('model_path           : {}'.format(self.model_path))
+        self.get_logger().info('camera_color_topic   : {}'.format(self.camera_color_topic))
+        self.get_logger().info('camera_depth_topic   : {}'.format(self.camera_depth_topic))
+        self.get_logger().info('overlay_image_topic  : {}'.format(self.overlay_topic))
+        self.get_logger().info('detections_topic     : {}'.format(self.detections_topic))
+        self.get_logger().info('target_classes       : {}'.format(self.target_classes))
+        self.get_logger().info('tracking_mode        : {}'.format(self.tracking_mode))
+        self.get_logger().info('overlay_scale_percent: {}'.format(self.overlay_scale_percent))
         self.get_logger().info("-----------------------------------------------------")
 
         # Add parameters callback 
@@ -257,7 +260,13 @@ class YOLODetectionNode(Node):
         self.detections_topic_pub.publish(detection_array)
 
         try:
-            self.overlay_topic_pub.publish(self.bridge.cv2_to_imgmsg(color_frame, "bgr8"))
+            # Scale it down to reduce network bandwidth
+            scale = self.overlay_scale_percent / 100.0
+            new_width = int(color_frame.shape[1] * scale)
+            new_height = int(color_frame.shape[0] * scale)
+            resized_frame = cv2.resize(color_frame, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            # Convert OpenCV image to ROS Image message and 
+            self.overlay_topic_pub.publish(self.bridge.cv2_to_imgmsg(resized_frame, "bgr8"))
         except CvBridgeError as e:
             self.get_logger().error(e)
 
