@@ -69,7 +69,7 @@ class YOLODetectionNode(Node):
         self.camera_depth_topic = self.declare_parameter('camera_depth_topic', '/camera/depth/image_raw').get_parameter_value().string_value
         self.overlay_topic = self.declare_parameter('overlay_image_topic', '/yolo/overlay').get_parameter_value().string_value
         self.detections_topic = self.declare_parameter('detections_topic', '/yolo/detections').get_parameter_value().string_value
-        self.overlay_scale_percent = self.declare_parameter('overlay_scale_percent', 50).get_parameter_value().integer_value
+        self.overlay_scale_percent = self.declare_parameter('overlay_scale_percent', 100).get_parameter_value().integer_value
 
         self.get_logger().info("-----------------------------------------------------")
         self.get_logger().info('start                : {}'.format(self.start))
