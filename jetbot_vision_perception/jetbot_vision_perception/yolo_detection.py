@@ -25,6 +25,7 @@ from matplotlib import scale
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy
 from rcl_interfaces.msg import ParameterType, SetParametersResult
 from sensor_msgs.msg import Image
 from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose, ObjectHypothesis
@@ -120,11 +121,18 @@ class YOLODetectionNode(Node):
         # CvBridge initialization
         self.bridge = CvBridge()
 
+        qos_profile = QoSProfile(
+            depth=20,
+            reliability=QoSReliabilityPolicy.BEST_EFFORT
+        )
+
+        self.get_logger().info('QoS Profile set: depth={}, reliability={}'.format(qos_profile.depth, 'BEST_EFFORT'))
+
         # Subscriptions
         # self.create_subscription(Image, '/camera/color/image_raw', self.color_image_callback, 10)
         # self.create_subscription(Image, '/camera/depth/image_raw', self.depth_image_callback, 10)
-        self.color_sub = message_filters.Subscriber(self, Image, self.camera_color_topic)
-        self.depth_sub = message_filters.Subscriber(self, Image, self.camera_depth_topic)
+        self.color_sub = message_filters.Subscriber(self, Image, self.camera_color_topic, qos_profile=qos_profile)
+        self.depth_sub = message_filters.Subscriber(self, Image, self.camera_depth_topic, qos_profile=qos_profile)
 
         # ApproximateTimeSynchronizer to synchronize color and depth images
         # This synchronizer will ensure that both color and depth images are processed togethe
