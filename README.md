@@ -62,6 +62,28 @@ docker build --network host -t jetbot_vision_perception
 - python3 webcam_test.py
 - python3 YOLO_detection_webcam.py
 
+# Image Transport Republish (Compression & Decompression)
+
+To reduce bandwidth when transmitting image topics, ROS 2 provides the image_transport package. You can republish raw image topics as compressed streams, and then decompress them back to raw for downstream nodes.
+
+- Compressing a Topic <br>
+  Use the raw → compressed pipeline to publish a compressed version of an existing image topic:
+  ```bash
+  ros2 run image_transport republish raw compressed \
+    --ros-args \
+    --remap in:=/yolo/overlay \
+    --remap /out/compressed:=/yolo/in/compressed
+  ```
+- Decompressing a Topic <br>
+  Use the compressed → raw pipeline to restore the compressed stream back to a raw image:
+  ```bash
+    ros2 run image_transport republish compressed raw \
+    --ros-args \
+    --remap __ns:=/yolo \
+    --remap in:=/in/compressed \
+    --remap out:=overlay_decompressed
+  ```
+
   ### References
 - https://www.jetson-ai-lab.com/tutorial_ultralytics.html
   - [YOLO 11](https://huggingface.co/Ultralytics/YOLO11/blob/365ed86341e7a7456dbc4cafc09f138814ce9ff1/yolo11n.pt)
