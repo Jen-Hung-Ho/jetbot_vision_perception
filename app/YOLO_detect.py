@@ -31,14 +31,14 @@ def get_model(format="engine"):
     os.chdir("../data")
 
     # Load a YOLOv8n PyTorch model
-    model = YOLO("yolov8n.pt")
+    model = YOLO("yolov11n.pt")
 
     # Export the model based on the specified format
     if format == "onnx":
         print("1 onnx")
         # print(f"Export format: {format}")  # Print the format information
         # model.export(format="onnx")  # creates 'yolov8n.onnx'
-        model_path = "yolov8n.onnx"
+        model_path = "yolov11n.onnx"
     elif format == "engine":
         print("2 engine")
         # print(f"Export format: {format}")  # Print the format information

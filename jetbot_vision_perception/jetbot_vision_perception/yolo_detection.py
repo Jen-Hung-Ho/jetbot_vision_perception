@@ -63,7 +63,7 @@ class YOLODetectionNode(Node):
         
         self.start = self.declare_parameter('start', True).get_parameter_value().bool_value
         self.debug = self.declare_parameter('debug', False).get_parameter_value().bool_value
-        self.model_path = self.declare_parameter('model_path', '/data/yolov8n.pt').get_parameter_value().string_value
+        self.model_path = self.declare_parameter('model_path', 'yolov11n.engine').get_parameter_value().string_value
         self.target_classes = self.declare_parameter('target_classes', ['person', 'sports ball']).get_parameter_value().string_array_value
         self.tracking_mode = self.declare_parameter('tracking_mode', False).get_parameter_value().bool_value
         self.camera_color_topic = self.declare_parameter('camera_color_topic', '/camera/color/image_raw').get_parameter_value().string_value
