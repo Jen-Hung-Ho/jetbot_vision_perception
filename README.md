@@ -3,8 +3,12 @@
 **Short Description:**  
 ROS2-based vision perception package for JetBot, utilizing YOLO models for real-time object detection and depth camera integration
 
-build docker command:
-docker build --network host -t jetbot_vision_perception 
+- **Build the Docker Image**
+   - Run the `build.sh` script to build the Docker image.
+   - Usage:
+   ```bash
+   ./build.sh
+   ```
 
 - **run.sh user**  
   - Starts the Docker container as your current Linux user (non-root).
@@ -14,11 +18,13 @@ docker build --network host -t jetbot_vision_perception
     ```
 
 - **start_shell.sh**  
-  - (If present) Provides a quick way to enter an interactive shell inside the running Docker container.
-  - Usage:  
-    ```bash
-    ./start_shell.sh
-    ```
+  - (If present) Offers a convenient way to open an interactive shell inside a running Docker container.  
+  - Run `docker ps` to list active containers and locate the appropriate `CONTAINER ID`.  
+  - After identifying the container you want to access (e.g., `422fc05b7655`), execute:
+
+  ```bash
+  ./start_shell.sh <CONTAINER_ID>
+  ```
 
 - **YOLO_export_Models.py**
   - The YOLO_export_Models.py script is designed to export a pre-trained YOLO model (specifically, the lightweight "yolov8n.pt" or "yolov11n.pt" versions) into a different format for deployment. You can run the script from the command line and specify:
@@ -61,6 +67,7 @@ docker build --network host -t jetbot_vision_perception
 - python3 YOLO_export_Models.py engine 11
 - python3 webcam_test.py
 - python3 YOLO_detection_webcam.py
+- python3 YOLO_detection_webcam.py 0 -p model_path:=/data/yolov11n.p
 
 # Image Transport Republish (Compression & Decompression)
 
