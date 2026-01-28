@@ -1,0 +1,12 @@
+yolo_detection_node:
+  ros__parameters:
+    start: true
+    debug: false
+    model_path: "/data/yolov11n.engine"
+    target_classes: ["person", "sports ball"]
+    tracking_mode: false
+    camera_color_topic: "/camera/color/image_raw_decompressed"
+    camera_depth_topic: "/camera/depth/image_raw_decompressed"
+    overlay_image_topic: "/yolo/overlay"
+    detections_topic: "/yolo/detections"
+    overlay_scale_percent: 100
