@@ -22,15 +22,39 @@ ROS2-based vision perception package for JetBot, utilizing YOLO models for real-
   ```bash
   # Navigate to the source directory
   cd ../ros2_ws
-  # Build the package (requires root privileges)
+  # Build the package
   colcon build
   # Source the setup file
   . install/setup.bash
   # Launch YOLO detection node
+  ros2 launch jetbot_vision_perception yolo_detection.launch.py
   ros2 run jetbot_vision_perception yolo_detection
   ros2 run jetbot_vision_perception yolo_detection --ros-args -p model_path:=/data/yolov11n.engine
   ```
+### Jetbot YOLO Image Detection Tool
+A lightweight, standalone YOLO image‑inference tester located in the /app directory.
+Useful for validating exported YOLO models (engine or onnx) without launching ROS2.
+- Usage:
+  ```bash
+  # Navigate to the /app directory cd /app
+  # Run YOLO image detection
+  python3 YOLO_detect.py [image_file] --model_path=<path> --format=<format>
+  # Alternative ROS2-style parameter syntax
+  python3 YOLO_detect.py [image_file] -p model_path:=<path> --format=<format>
+  # Display help
+  python3 YOLO_detect.py -? | -help
+  ```
+- Examples:
+  ```bash
+  python3 YOLO_detect.py ../out/bus.jpg
+  python3 YOLO_detect.py ../out/bus.jpg --model_path=/data/yolov11n.engine --format=engine
+  python3 YOLO_detect.py ../out/bus.jpg -p model_path:=/data/yolov11n.pt --format=onnx
 
+  ```
+  <p float="left">
+      <img src="out/bus_out.jpg" width="290" />
+      <img src="docs/flower_out.jpg" width="330" />
+  </p>
 - python3 YOLO_export_Models.py engine 11
 - python3 webcam_test.py
 - python3 YOLO_detection_webcam.py
