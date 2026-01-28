@@ -26,49 +26,80 @@ import sys
 import os
 import cv2
 
+USAGE = """
+Usage: python3 YOLO_detect.py [image_file] --model_path=<path> OR -p model_path:=<path> --format=<format>
+       python3 YOLO_detect.py -? | -help
+
+Examples:
+  python3 YOLO_detect.py ../out/bus.jpg
+  python3 YOLO_detect.py ../out/bus.jpg --model_path=/data/yolov11n.engine --format=engine
+  python3 YOLO_detect.py ../out/bus.jpg -p model_path:=/data/yolov11n.pt --format=onnx
+
+Arguments:
+  image_file        (optional) Path to input image file (default: ../out/bus.jpg)
+  --model_path=PATH (optional) Path to model file (default: ../data/yolov11n.engine)
+  -p model_path:=PATH (optional) ROS2-style parameter for model path
+  --format=FORMAT   (optional) Model format: 'engine' or 'onnx' (default: engine)
+
+If model_path is not provided, defaults to ../data/yolov11n.engine
+"""
+
+def parse_model_path_arg(args):
+    # Look for --model_path or -p model_path:=<path>
+    for i, arg in enumerate(args):
+        if arg.startswith("--model_path="):
+            return arg.split("=", 1)[1]
+        if arg == "-p" and i + 1 < len(args):
+            param = args[i + 1]
+            if param.startswith("model_path:="):
+                return param.split(":=", 1)[1]
+    return None
+
+def parse_format_arg(args):
+    # Look for --format
+    for arg in args:
+        if arg.startswith("--format="):
+            return arg.split("=", 1)[1]
+    return "engine"
+
 def get_model(format="engine"):
-    # Change the current working directory to the desired folder
-    os.chdir("../data")
+    # Assume data folder is ../data relative to script location
+    data_dir = "../data"
 
     # Load a YOLOv8n PyTorch model
-    model = YOLO("yolov11n.pt")
+    model = YOLO(os.path.join(data_dir, "yolov11n.pt"))
 
     # Export the model based on the specified format
     if format == "onnx":
-        print("1 onnx")
-        # print(f"Export format: {format}")  # Print the format information
-        # model.export(format="onnx")  # creates 'yolov8n.onnx'
-        model_path = "yolov11n.onnx"
+        print("Exporting to onnx")
+        # model.export(format="onnx")  # creates 'yolov11n.onnx'
+        model_path = os.path.join(data_dir, "yolov11n.onnx")
     elif format == "engine":
-        print("2 engine")
-        # print(f"Export format: {format}")  # Print the format information
-        # model.export(format="engine")  # creates 'yolov8n.engine'
-        model_path = "yolov8n.engine"
+        print("Using engine format")
+        # model.export(format="engine")  # creates 'yolov11n.engine'
+        model_path = os.path.join(data_dir, "yolov11n.engine")
     else:
         raise ValueError("Unsupported format. Please choose 'onnx' or 'engine'.")
 
     return model_path
 
 
-def main(file_name, format):
+def main(file_name, model_path, format):
 
-    model_path = get_model(format)
+    if not os.path.exists(model_path):
+        print(f"Model path {model_path} does not exist. Attempting to get model from data folder.")
+        model_path = get_model(format)
 
     # Load the exported model
-    print(f"Load model: {model_path}")  # Print the format information
-    # Load the exported model with the specified task type
+    print(f"Loading model: {model_path}")
     trt_model = YOLO(model_path, task="detect")
 
     # Run inference on local file
     results = trt_model(file_name)
-    # Run inference on URL
-    # results = trt_model("https://ultralytics.com/images/bus.jpg")
 
     # Load the image
     image = cv2.imread(file_name)
 
-    # List of class names (you can update this list with the actual class names)
-    # class_names = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table", "toilet", "TV", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
     # Get class names from the model
     class_names = trt_model.names
 
@@ -86,14 +117,38 @@ def main(file_name, format):
 
     # Save the image with bounding boxes
     output_file_name = f"../out/{base_name}_out.jpg"
-    print(f"Ouput YOLO detection file name:{output_file_name}")
+    print(f"Output YOLO detection file name: {output_file_name}")
     cv2.imwrite(output_file_name, image)
 
 if __name__ == "__main__":
-    print(f"arg:{sys.argv}")
-    format = sys.argv[2] if len(sys.argv) > 2 else "engine"
-    print(f"Export format: {format}")  # Print the format information
-    file_name = sys.argv[1] if len(sys.argv) > 1 else "../out/bus.jpg"
-    print(f"Input image: {file_name}")  # Print the format information
+    print(f"args: {sys.argv}")
 
-    main(file_name, format)
+    # Print usage and exit if -? or -help is present
+    if any(arg in ("-?", "-help") for arg in sys.argv):
+        print("===============================================")
+        print(USAGE)
+        print("===============================================")
+        sys.exit(0)
+
+    # Default values
+    file_name = "../out/bus.jpg"
+    model_path = None
+    format = "engine"
+
+    # Parse file_name if provided as first positional argument
+    if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
+        file_name = sys.argv[1]
+
+    # Parse model_path from args
+    model_path = parse_model_path_arg(sys.argv)
+    if not model_path:
+        model_path = "../data/yolov11n.engine"
+
+    # Parse format from args
+    format = parse_format_arg(sys.argv)
+
+    print(f"Input image: {file_name}")
+    print(f"Model path: {model_path}")
+    print(f"Format: {format}")
+
+    main(file_name, model_path, format)
