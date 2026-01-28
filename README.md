@@ -3,44 +3,11 @@
 **Short Description:**  
 ROS2-based vision perception package for JetBot, utilizing YOLO models for real-time object detection and depth camera integration
 
-- **Build the Docker Image**
-   - Run the `build.sh` script to build the Docker image.
-   - Usage:
-   ```bash
-   ./build.sh
-   ```
+### Setup
+- [JetBot Vision Perception with YOLO Model Setup Guide](docs/setup.md#setup)
+<br><br>
 
-- **run.sh user**  
-  - Starts the Docker container as your current Linux user (non-root).
-  - Usage:  
-    ```bash
-    ./run.sh user
-    ```
-
-- **start_shell.sh**  
-  - (If present) Offers a convenient way to open an interactive shell inside a running Docker container.  
-  - Run `docker ps` to list active containers and locate the appropriate `CONTAINER ID`.  
-  - After identifying the container you want to access (e.g., `422fc05b7655`), execute:
-
-  ```bash
-  ./start_shell.sh <CONTAINER_ID>
-  ```
-
-- **YOLO_export_Models.py**
-  - The YOLO_export_Models.py script is designed to export a pre-trained YOLO model (specifically, the lightweight "yolov8n.pt" or "yolov11n.pt" versions) into a different format for deployment. You can run the script from the command line and specify:
-    - the export format: onnx or engine (TensorRT)
-    - the YOLO version: 8 or 11
-  - If no format is specified, it defaults to TensorRT (`engine`).
-  - It will generate an exported model file (`yolov8n.onnx`, `yolov8n.engine` or `yolov11n.onnx`, `yolov11n.engine`) in the `../data` directory, ready for deployment or inference using ONNX or TensorRT runtimes.
-  ```bash
-  Usage:   python3 YOLO_export_Models.py [engine|onnx] [8|11]
-  Example: python3 YOLO_export_Models.py engine 11
-  ```
-  > **Note (for YOLOv11 users)**:
-  > The yolov11n.pt weights must be downloaded manually from the following link and placed in the data/ folder:
-  > [Download yolov11n.pt](https://huggingface.co/Ultralytics/YOLO11/blob/365ed86341e7a7456dbc4cafc09f138814ce9ff1/yolo11n.pt)
-  > Be sure to rename the file to yolov11n.pt after downloading.
-# Jetbot ROS2 yolo_detection
+### Jetbot ROS2 yolo_detection
 > **Note:**  
 > The provided Docker image includes only the ROS2 source code—it does **not** come with ROS2 pre-installed or built.  
 > On first-time launch inside the container, you **must manually build the workspace** with:  
@@ -69,7 +36,7 @@ ROS2-based vision perception package for JetBot, utilizing YOLO models for real-
 - python3 YOLO_detection_webcam.py
 - python3 YOLO_detection_webcam.py 0 -p model_path:=/data/yolov11n.p
 
-# Image Transport Republish (Compression & Decompression)
+### Image Transport Republish (Compression & Decompression)
 
 To reduce bandwidth when transmitting image topics, ROS 2 provides the image_transport package. You can republish raw image topics as compressed streams, and then decompress them back to raw for downstream nodes.
 
