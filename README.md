@@ -55,10 +55,40 @@ Useful for validating exported YOLO models (engine or onnx) without launching RO
       <img src="out/bus_out.jpg" width="290" />
       <img src="docs/flower_out.jpg" width="330" />
   </p>
-- python3 YOLO_export_Models.py engine 11
-- python3 webcam_test.py
-- python3 YOLO_detection_webcam.py
-- python3 YOLO_detection_webcam.py 0 -p model_path:=/data/yolov11n.p
+
+### Jetbot YOLO Webcam Detection Tool
+A real‑time YOLO webcam detection utility located in the /app directory.
+This tool opens the specified webcam using OpenCV, performs YOLO inference on each frame, and displays the live annotated output.
+Useful for quickly validating YOLO models (engine or onnx) with a live camera feed outside ROS2.
+- Usage:
+  ```bash
+  # Navigate to the /app directory
+  cd /app
+
+  # Run YOLO webcam detection
+  python3 YOLO_detection_webcam.py [webcam_id] --model_path=<path>
+
+  # Alternative ROS2-style parameter syntax
+  python3 YOLO_detection_webcam.py [webcam_id] -p model_path:=<path>
+
+  # Display help
+  python3 YOLO_detection_webcam.py -? | -help
+  ```
+  - Examples:
+  ```bash
+  python3 YOLO_detection_webcam.py
+  python3 YOLO_detection_webcam.py 0 --model_path=/data/yolov11n.engine
+  python3 YOLO_detection_webcam.py 0 -p model_path:=/data/yolov11n.pt
+  ```
+  > **Note**
+  > - To find available webcam IDs, run: <br>
+  >   ```bash
+  >   v4l2-ctl --list-devices
+  >   ```
+  >  - To verify the webcam works properly:
+  > ```bash
+  >  python3 webcam_test.py [webcam_id]
+  > ```
 
 ### Image Transport Republish (Compression & Decompression)
 
