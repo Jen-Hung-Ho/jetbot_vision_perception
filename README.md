@@ -1,13 +1,14 @@
 # JetBot Vision Perception with YOLO
 
-**Short Description:**  
-ROS2-based vision perception package for JetBot, utilizing YOLO models for real-time object detection and depth camera integration
+A ROS 2–based perception package designed for NVIDIA JetBot, providing real‑time object detection, depth‑aware perception, and flexible image transport pipelines. The system integrates YOLO models (including TensorRT‑optimized .engine builds) with ROS 2 nodes for image inference, overlay visualization, and compressed image streaming.
 
 ### Setup
 - [JetBot Vision Perception with YOLO Model Setup Guide](docs/setup.md#setup)
 <br><br>
 
-### Jetbot ROS2 yolo_detection
+### Jetbot ROS2 YOLO Detection Node
+A ROS 2 node that performs real‑time object detection on incoming camera topics, publishes annotated overlays, and supports configurable model paths (e.g., TensorRT .engine files). Ideal for integrating with Nav2, depth cameras, or downstream perception modules.  
+It also outputs per‑object distance information, both embedded in the annotated overlay and included in the detection messages, allowing downstream nodes to fuse YOLO results with depth‑aware perception or obstacle‑avoidance logic.
 > **Note:**  
 > The provided Docker image includes only the ROS2 source code—it does **not** come with ROS2 pre-installed or built.  
 > On first-time launch inside the container, you **must manually build the workspace** with:  
