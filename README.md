@@ -2,6 +2,14 @@
 
 A ROS 2–based perception package designed for NVIDIA JetBot, providing real‑time object detection, depth‑aware perception, and flexible image transport pipelines. The system integrates YOLO models (including TensorRT‑optimized .engine builds) with ROS 2 nodes for image inference, overlay visualization, and compressed image streaming.
 
+#### Here is a brief overview of the JetBot tools architecture 
+The diagram below illustrates how the three major JetBot tools interact within the overall system:
+- **JetBot Tools** – the core utility layer providing shared infrastructure, helper scripts, and system‑level integrations.
+- **JetBot Voice-Activated Copilot Tools** – the speech interface layer enabling ASR/TTS‑based voice control using NVIDIA Riva.
+- **JetBot Vision Perception Tools** – the ROS2‑based perception stack offering YOLO detection, depth‑aware perception, and image transport pipelines.
+
+<img src="docs/JetBot_ASR_voice_tool_V21.png" width="700" />
+
 ### Setup
 - [JetBot Vision Perception with YOLO Model Setup Guide](docs/setup.md#setup)
 <br><br>
@@ -118,3 +126,5 @@ To reduce bandwidth when transmitting image topics, ROS 2 provides the image_tra
   - [YOLO 11](https://huggingface.co/Ultralytics/YOLO11/blob/365ed86341e7a7456dbc4cafc09f138814ce9ff1/yolo11n.pt)
 - https://github.com/mgonzs13/yolo_ros
 - https://docs.ultralytics.com/reference/engine/results/
+- https://github.com/Jen-Hung-Ho/ros2_jetbot_voice
+- https://github.com/Jen-Hung-Ho/ros2_jetbot_tools
