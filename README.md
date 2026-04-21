@@ -40,6 +40,9 @@ It also outputs per‑object distance information, both embedded in the annotate
   ros2 run jetbot_vision_perception yolo_detection
   ros2 run jetbot_vision_perception yolo_detection --ros-args -p model_path:=/data/yolov11n.engine
   ```
+   [<img src="https://img.youtube.com/vi/WHVgW2n2Q1s/hqdefault.jpg" width="340"
+/>](https://youtube.com/shorts/WHVgW2n2Q1s)
+
 ### Jetbot YOLO Image Detection Tool
 A lightweight, standalone YOLO image‑inference tester located in the /app directory.
 Useful for validating exported YOLO models (engine or onnx) without launching ROS2.
