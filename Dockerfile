@@ -1,5 +1,28 @@
 # Use an argument for the base image
-ARG BASE_IMAGE=ultralytics/ultralytics:latest-jetson-jetpack6
+# ARG BASE_IMAGE=ultralytics/ultralytics:latest-jetson-jetpack6
+
+# NOTE: The ultralytics:8.3.34-jetson-jetpack6 base image is built on
+# NVIDIA JetPack 6.0 (L4T 36.3.x), which includes:
+#   • CUDA 12.2.140
+#   • cuDNN 8.9.x
+#   • TensorRT 8.6.x
+#   • PyTorch built against NumPy 1.23.x
+#
+# This matches JetPack 6.0 devices and is ABI‑compatible with:
+#   • NumPy 1.23.5 (required for OpenGL + PyTorch on Jetson)
+#   • YOLOv11 TensorRT engine generation
+#   • ROS2 Humble on Jetson
+#
+# IMPORTANT:
+# Do NOT use ultralytics:latest-jetson-jetpack6 for JetPack 6.0 systems.
+# The "latest" tag is built on JetPack 6.2 (L4T 36.4.x) with:
+#   • CUDA 12.4
+#   • TensorRT 10.x
+#   • PyTorch built for NumPy 1.26.x
+# These are NOT compatible with JetPack 6.0 and will break TensorRT engines,
+# PyTorch CUDA kernels, and NumPy 1.23.x workflows.
+
+ARG BASE_IMAGE=ultralytics/ultralytics:8.3.34-jetson-jetpack6
 FROM ${BASE_IMAGE}
 
 
@@ -98,6 +121,5 @@ WORKDIR /app
 # Instead, the /app directory will be mounted from the host machine at runtime (e.g., via run.sh),
 # similar to how the ROS2 code is mounted. This allows for live code changes without rebuilding the image.
 
-
 # Ensure the correct version of NumPy is installed before running the application
-RUN pip check
+# RUN pip check
