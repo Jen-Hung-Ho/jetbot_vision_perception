@@ -1,26 +1,57 @@
 # Use an argument for the base image
 # ARG BASE_IMAGE=ultralytics/ultralytics:latest-jetson-jetpack6
 
-# NOTE: The ultralytics:8.3.34-jetson-jetpack6 base image is built on
-# NVIDIA JetPack 6.0 (L4T 36.3.x), which includes:
+# ------------------------------------------------------------------------------
+# WHY WE PIN THE BASE IMAGE TO ultralytics/ultralytics:8.3.34-jetson-jetpack6
+#
+# The newer Ultralytics Jetson images (tag: latest-jetson-jetpack6) have changed
+# their build system to FORCE the use of OpenCV‑HEADLESS. This is done by
+# patching pyproject.toml to replace:
+#
+#       "opencv-python"  →  "opencv-python-headless"
+#
+# As a result, the latest image removes all GUI components:
+#   • no HighGUI
+#   • no GTK / Qt
+#   • no X11 / libGL
+#   • cv2.imshow(), cv2.waitKey(), webcam display → all fail
+#
+# This is NOT a JetPack issue. It is a change in the upstream Ultralytics
+# Dockerfile. Any Jetson system using the "latest" tag will lose OpenCV GUI.
+#
+# The last Jetson image that still includes FULL OpenCV (with GUI support) is:
+#
+#       ultralytics/ultralytics:8.3.34-jetson-jetpack6
+#
+# That version is built on JetPack 6.0 (L4T 36.3.x) and provides:
 #   • CUDA 12.2.140
 #   • cuDNN 8.9.x
 #   • TensorRT 8.6.x
-#   • PyTorch built against NumPy 1.23.x
+#   • PyTorch built for NumPy 1.23.x (required for OpenGL on Jetson)
+#   • Full OpenCV with GUI (cv2.imshow works)
 #
-# This matches JetPack 6.0 devices and is ABI‑compatible with:
-#   • NumPy 1.23.5 (required for OpenGL + PyTorch on Jetson)
-#   • YOLOv11 TensorRT engine generation
-#   • ROS2 Humble on Jetson
+# We have validated this pinned image on BOTH:
+#   ✔ JetPack 6.0 host (L4T 36.3.x)
+#   ✔ JetPack 6.2.2 host (L4T 36.5.x)
 #
-# IMPORTANT:
-# Do NOT use ultralytics:latest-jetson-jetpack6 for JetPack 6.0 systems.
-# The "latest" tag is built on JetPack 6.2 (L4T 36.4.x) with:
-#   • CUDA 12.4
-#   • TensorRT 10.x
-#   • PyTorch built for NumPy 1.26.x
-# These are NOT compatible with JetPack 6.0 and will break TensorRT engines,
-# PyTorch CUDA kernels, and NumPy 1.23.x workflows.
+# In both environments, the 8.3.34 base image runs correctly and preserves
+# OpenCV GUI functionality. This confirms that the issue is NOT JetPack-related
+# but caused by the upstream switch to OpenCV‑headless in the "latest" tag.
+#
+# Using the newer "latest" tag will break:
+#   • webcam preview
+#   • OpenCV visualization
+#   • any JetBot vision pipeline requiring display
+#
+# Therefore we intentionally pin the base image to 8.3.34 to maintain:
+#   ✔ GUI support
+#   ✔ JetPack 6.0 + 6.2.2 compatibility
+#   ✔ working JetBot vision + YOLO pipeline
+#
+# (Note: Similar to the ROS2 GPG key fix in the NanoLLM image, this pinning
+# avoids upstream breaking changes and ensures reproducible builds.)
+# ------------------------------------------------------------------------------
+
 
 ARG BASE_IMAGE=ultralytics/ultralytics:8.3.34-jetson-jetpack6
 FROM ${BASE_IMAGE}
