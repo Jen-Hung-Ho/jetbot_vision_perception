@@ -26,7 +26,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'yolo_detection = jetbot_vision_perception.yolo_detection:main'
+            'yolo_detection = jetbot_vision_perception.yolo_detection:main',
+            'rtsp_publisher = jetbot_vision_perception.rtsp_publisher:main'
         ],
     },
 )

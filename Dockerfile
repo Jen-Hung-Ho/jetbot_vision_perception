@@ -143,6 +143,22 @@ RUN mkdir -p /ros2_ws/src
 # *** FIX: Change ownership before switching user ***
 RUN chown -R ${USERNAME}:${USERNAME} /ros2_ws
 
+# Install gi (PyGObject) and GStreamer for ROS2 vision processing
+RUN apt-get update && apt-get install -y \
+    gstreamer1.0-tools \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    libgstreamer1.0-dev \
+    libgstrtspserver-1.0-dev \
+    python3-gi \
+    python3-gi-cairo \
+    gir1.2-gstreamer-1.0 \
+    gir1.2-gst-plugins-base-1.0 \
+    gir1.2-glib-2.0 \
+    && rm -rf /var/lib/apt/lists/*
+
 
 # Set the working directory
 WORKDIR /app
