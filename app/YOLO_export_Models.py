@@ -63,6 +63,16 @@ def export_model(format="engine", model_version="8"):
     print(f"Using model: {model_file}")
     model = YOLO(model_file)
 
+    # Generate DeepStream label file
+    label_file = model_file.replace(".pt", "_labels.txt")
+    
+    with open(label_file, "w") as f:
+        for i in range(len(model.names)):
+            f.write(model.names[i] + "\n")
+
+    print(f"Generated labels file: {label_file}")
+
+
     # Export the model based on the specified format
     if format == "onnx":
         print("1 onnx=ONNX")
